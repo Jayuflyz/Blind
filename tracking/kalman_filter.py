@@ -73,8 +73,9 @@
 #         y2 = x[1] + h / 2.
 #         return np.array([[x1, y1, x2, y2]])
 
-from filterpy.kalman import KalmanFilter
 import numpy as np
+from filterpy.kalman import KalmanFilter
+
 
 class KalmanBoxTracker:
     count = 0
@@ -83,26 +84,29 @@ class KalmanBoxTracker:
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
 
         # State transition matrix
-        self.kf.F = np.array([[1, 0, 0, 0, 1, 0, 0],
-                              [0, 1, 0, 0, 0, 1, 0],
-                              [0, 0, 1, 0, 0, 0, 1],
-                              [0, 0, 0, 1, 0, 0, 0],
-                              [0, 0, 0, 0, 1, 0, 0],
-                              [0, 0, 0, 0, 0, 1, 0],
-                              [0, 0, 0, 0, 0, 0, 1]])
+        self.kf.F = np.array(
+            [
+                [1, 0, 0, 0, 1, 0, 0],
+                [0, 1, 0, 0, 0, 1, 0],
+                [0, 0, 1, 0, 0, 0, 1],
+                [0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 0, 1],
+            ]
+        )
 
         # Measurement function
-        self.kf.H = np.array([[1, 0, 0, 0, 0, 0, 0],
-                              [0, 1, 0, 0, 0, 0, 0],
-                              [0, 0, 1, 0, 0, 0, 0],
-                              [0, 0, 0, 1, 0, 0, 0]])
+        self.kf.H = np.array(
+            [[1, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0]]
+        )
 
         # Measurement uncertainty
-        self.kf.R[2:, 2:] *= 10.
+        self.kf.R[2:, 2:] *= 10.0
 
         # Initial covariance matrix
-        self.kf.P[4:, 4:] *= 1000.
-        self.kf.P *= 10.
+        self.kf.P[4:, 4:] *= 1000.0
+        self.kf.P *= 10.0
 
         # Process uncertainty
         self.kf.Q[-1, -1] *= 0.01
@@ -146,27 +150,23 @@ class KalmanBoxTracker:
         return self.convert_x_to_bbox(self.kf.x)
 
     def convert_bbox_to_z(self, bbox):
-        """
-        Takes a bounding box in the format [x1,y1,x2,y2] and returns
-        z in the format [center_x, center_y, scale (area), ratio]
+        """Takes a bounding box in the format [x1,y1,x2,y2] and returns z in the format [center_x, center_y, scale
+        (area), ratio].
         """
         w = bbox[2] - bbox[0]
         h = bbox[3] - bbox[1]
-        x = bbox[0] + w / 2.
-        y = bbox[1] + h / 2.
+        x = bbox[0] + w / 2.0
+        y = bbox[1] + h / 2.0
         s = w * h
         r = w / float(h + 1e-6)  # avoid div by zero
         return np.array([[x], [y], [s], [r]])
 
     def convert_x_to_bbox(self, x):
-        """
-        Takes a bounding box in the center form [x,y,s,r] and returns
-        bounding box in [x1,y1,x2,y2] format.
-        """
+        """Takes a bounding box in the center form [x,y,s,r] and returns bounding box in [x1,y1,x2,y2] format."""
         w = np.sqrt(x[2] * x[3])
         h = x[2] / (w + 1e-6)
-        x1 = x[0] - w / 2.
-        y1 = x[1] - h / 2.
-        x2 = x[0] + w / 2.
-        y2 = x[1] + h / 2.
+        x1 = x[0] - w / 2.0
+        y1 = x[1] - h / 2.0
+        x2 = x[0] + w / 2.0
+        y2 = x[1] + h / 2.0
         return np.array([x1, y1, x2, y2]).reshape((1, 4))

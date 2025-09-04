@@ -1,6 +1,8 @@
-import speech_recognition as sr
 import threading
 import time
+
+import speech_recognition as sr
+
 
 class VoiceListener:
     """Listens for voice commands and responds using a VoiceSpeaker instance."""
@@ -75,12 +77,12 @@ class VoiceListener:
     def _speak_positions(self, command, labels):
         """Speaks relative positions of objects."""
         if not self.frame_size_func or not isinstance(labels, dict):
-             self.speaker.speak("Position data is not available.")
-             return
+            self.speaker.speak("Position data is not available.")
+            return
 
         frame_width, _ = self.frame_size_func()
         if frame_width == 0:
-            return # Avoid division by zero if frame size not ready
+            return  # Avoid division by zero if frame size not ready
 
         for label, box in labels.items():
             # Check if the user asked for a specific object
@@ -94,4 +96,3 @@ class VoiceListener:
                 else:
                     position = "on your right"
                 self.speaker.speak(f"The {label} is {position}")
-
