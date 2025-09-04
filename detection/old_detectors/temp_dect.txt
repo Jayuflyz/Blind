@@ -1,0 +1,321 @@
+# import torch
+# import cv2
+# import numpy as np
+# import time
+# from config.settings import CONFIDENCE, SCALE_PERCENT
+# from tracking.tracker import HandTracker
+# from voice.speaker import VoiceSpeaker
+# from learning.learner import ObjectLearner
+
+# def iou(boxA, boxB):
+#     """Calculate Intersection over Union between two bounding boxes."""
+#     xA = max(boxA[0], boxB[0])
+#     yA = max(boxA[1], boxB[1])
+#     xB = min(boxA[2], boxB[2])
+#     yB = min(boxA[3], boxB[3])
+#     interArea = max(0, xB - xA) * max(0, yB - yA)
+#     if interArea == 0:
+#         return 0.0
+#     boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
+#     boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
+#     return interArea / float(boxAArea + boxBArea - interArea)
+
+# class Detector:
+#     def __init__(self, config=None):
+#         # Configuration with defaults
+#         self.config = {
+#             'confidence_threshold': CONFIDENCE,
+#             'scale_percent': SCALE_PERCENT,
+#             'hand_proximity_threshold': 100,  # pixels
+#             'speech_cooldown': 3,  # seconds
+#             'known_objects': ['person', 'car', 'dog', 'chair', 'bicycle'],
+#             'performance_monitoring': True
+#         }
+        
+#         # Update config with provided values
+#         if config:
+#             self.config.update(config)
+        
+#         # Initialize device and model
+#         self._initialize_model()
+        
+#         # Initialize components
+#         self._initialize_components()
+        
+#         # Performance tracking
+#         self.frame_count = 0
+#         self.start_time = time.time()
+#         self.fps = 0
+
+#     def _initialize_model(self):
+#         """Initialize the YOLOv5 model with proper device handling."""
+#         try:
+#             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+#             print(f"Using device: {self.device}")
+            
+#             self.model = torch.hub.load('ultralytics/yolov8', 'yolov8n', pretrained=True)
+#             self.model.to(self.device).eval()
+            
+#             if self.device == 'cuda':
+#                 self.model.half()
+#                 print("Using half precision (FP16) for CUDA")
+#             else:
+#                 self.model.float()
+#                 print("Using full precision (FP32) for CPU")
+            
+#             self.labels = self.model.names
+#             print(f"Model loaded with {len(self.labels)} classes")
+            
+#         except Exception as e:
+#             print(f"Error initializing model: {e}")
+#             raise
+
+#     def _initialize_components(self):
+#         """Initialize all component classes with error handling."""
+#         try:
+#             self.hand_tracker = HandTracker()
+#             self.speaker = VoiceSpeaker()
+#             self.learner = ObjectLearner()
+            
+#             # State management
+#             self.hand_label = 'hand'
+#             self.track_id_to_label = {}
+#             self.last_spoken = {}
+#             self.is_listening = False
+#             self.listening_start_time = 0
+            
+#         except Exception as e:
+#             print(f"Error initializing components: {e}")
+#             raise
+
+#     def draw_box(self, img, box, label, color=(0, 255, 0), confidence=None):
+#         """Draw bounding box with label and optional confidence score."""
+#         try:
+#             x1, y1, x2, y2 = map(int, box)
+            
+#             # Draw rectangle
+#             cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+            
+#             # Create label text
+#             label_text = label
+#             if confidence is not None:
+#                 label_text += f" ({confidence:.2f})"
+            
+#             # Draw label background
+#             (text_width, text_height), baseline = cv2.getTextSize(
+#                 label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
+#             )
+#             cv2.rectangle(img, (x1, y1 - text_height - 10), 
+#                          (x1 + text_width, y1), color, -1)
+            
+#             # Draw label text
+#             cv2.putText(img, label_text, (x1, y1 - 5), 
+#                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
+#         except Exception as e:
+#             print(f"Error drawing box: {e}")
+
+#     def _process_detections(self, results):
+#         """Process YOLO detection results and filter by confidence."""
+#         try:
+#             detections = results.xyxy[0]
+#             detections = detections[detections[:, 4] > self.config['confidence_threshold']]
+            
+#             # Filter out hand detections and format boxes
+#             other_boxes = []
+#             for *xyxy, conf, cls_id in detections:
+#                 label = self.labels[int(cls_id)]
+#                 if label != self.hand_label:
+#                     box = [int(x.item()) for x in xyxy]
+#                     other_boxes.append((box, label, float(conf)))
+            
+#             return other_boxes
+            
+#         except Exception as e:
+#             print(f"Error processing detections: {e}")
+#             return []
+
+#     def _handle_hand_interaction(self, resized, hand_box, keypoints, other_boxes, current_time):
+#         """Handle object detection when hand is present."""
+#         detected_labels = set()
+        
+#         # Draw hand bounding box
+#         self.draw_box(resized, hand_box, "Hand", color=(0, 255, 255))
+        
+#         # Draw hand keypoints
+#         if keypoints:
+#             for kp in keypoints:
+#                 x, y = int(kp[0]), int(kp[1])
+#                 cv2.circle(resized, (x, y), 4, (0, 0, 255), -1)
+        
+#         # Process nearby objects
+#         for obj_box, obj_label, confidence in other_boxes:
+#             distance = self.keypoints_to_box_distance(keypoints, obj_box)
+            
+#             if distance < self.config['hand_proximity_threshold']:
+#                 self._process_nearby_object(resized, obj_box, obj_label, confidence, 
+#                                           current_time, detected_labels)
+        
+#         return detected_labels
+
+#     def _process_nearby_object(self, resized, obj_box, obj_label, confidence, current_time, detected_labels):
+#         """Process an object that's near the hand."""
+#         last_spoke = self.last_spoken.get(obj_label, 0)
+        
+#         if current_time - last_spoke > self.config['speech_cooldown']:
+#             if obj_label not in self.config['known_objects']:
+#                 self._handle_unknown_object(resized, obj_box, obj_label)
+#             else:
+#                 self.speaker.speak(obj_label)
+#                 self.last_spoken[obj_label] = current_time
+        
+#         self.draw_box(resized, obj_box, obj_label, confidence=confidence)
+#         detected_labels.add(obj_label)
+
+#     def _handle_unknown_object(self, resized, obj_box, obj_label):
+#         """Handle detection of unknown objects with user interaction."""
+#         try:
+#             self.speaker.speak("Unknown object detected. What is it?")
+            
+#             # Show listening indicator
+#             self.is_listening = True
+#             self.listening_start_time = time.time()
+            
+#             user_label = self.learner.ask_and_get_label()
+            
+#             if user_label:
+#                 self.learner.save_cropped_object(resized, obj_box, user_label)
+#                 obj_label = user_label  # Update label to user input
+#                 self.speaker.speak(f"Learned: {user_label}")
+            
+#             self.is_listening = False
+            
+#         except Exception as e:
+#             print(f"Error handling unknown object: {e}")
+#             self.is_listening = False
+
+#     def _handle_regular_detection(self, resized, other_boxes, current_time):
+#         """Handle regular object detection without hand interaction."""
+#         detected_labels = set()
+        
+#         for obj_box, obj_label, confidence in other_boxes:
+#             self.draw_box(resized, obj_box, obj_label, confidence=confidence)
+            
+#             last_spoke = self.last_spoken.get(obj_label, 0)
+#             if current_time - last_spoke > self.config['speech_cooldown']:
+#                 self.speaker.speak(obj_label)
+#                 self.last_spoken[obj_label] = current_time
+            
+#             detected_labels.add(obj_label)
+        
+#         return detected_labels
+
+#     def _update_performance_metrics(self):
+#         """Update and display performance metrics."""
+#         if not self.config['performance_monitoring']:
+#             return
+        
+#         self.frame_count += 1
+#         elapsed = time.time() - self.start_time
+        
+#         if elapsed > 1:  # Update FPS every second
+#             self.fps = self.frame_count / elapsed
+#             self.frame_count = 0
+#             self.start_time = time.time()
+
+#     def _draw_ui_elements(self, frame):
+#         """Draw UI elements like FPS counter and status indicators."""
+#         # Draw FPS counter
+#         if self.config['performance_monitoring']:
+#             cv2.putText(frame, f"FPS: {self.fps:.1f}", (10, 30), 
+#                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+#         # Draw listening indicator
+#         if self.is_listening:
+#             elapsed = time.time() - self.listening_start_time
+#             alpha = 0.5 + 0.5 * np.sin(elapsed * 5)  # Pulsing effect
+#             cv2.putText(frame, "LISTENING...", (10, 60), 
+#                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
+#             # Draw pulsating circle
+#             center = (frame.shape[1] - 30, 30)
+#             radius = int(10 + 5 * alpha)
+#             cv2.circle(frame, center, radius, (0, 0, 255), -1)
+
+#     def detect_and_draw(self, frame):
+#         """Main detection method with comprehensive error handling."""
+#         try:
+#             # Resize frame for processing
+#             width = int(frame.shape[1] * self.config['scale_percent'] / 100)
+#             height = int(frame.shape[0] * self.config['scale_percent'] / 100)
+#             resized = cv2.resize(frame, (width, height))
+#             img_rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+
+#             # Hand detection
+#             hand_box, keypoints = self.hand_tracker.get_hand_box_and_keypoints(resized)
+#             current_time = time.time()
+
+#             # YOLOv5 object detection
+#             with torch.no_grad():
+#                 results = self.model(img_rgb)
+
+#             # Process detections
+#             other_boxes = self._process_detections(results)
+
+#             # Handle detection based on hand presence
+#             if hand_box:
+#                 detected_labels = self._handle_hand_interaction(
+#                     resized, hand_box, keypoints, other_boxes, current_time
+#                 )
+#             else:
+#                 detected_labels = self._handle_regular_detection(
+#                     resized, other_boxes, current_time
+#                 )
+
+#             # Update performance metrics
+#             self._update_performance_metrics()
+            
+#             # Draw UI elements
+#             self._draw_ui_elements(resized)
+
+#             return resized, detected_labels
+
+#         except Exception as e:
+#             print(f"Error in detect_and_draw: {e}")
+#             # Return original frame on error
+#             return frame, set()
+
+#     def keypoints_to_box_distance(self, keypoints, box):
+#         """Calculate distance between hand keypoints and object box center."""
+#         try:
+#             # Get center of the object box
+#             box_center = ((box[0] + box[2]) // 2, (box[1] + box[3]) // 2)
+
+#             if keypoints and len(keypoints) >= 9:
+#                 fingertip = keypoints[8]
+#                 return np.linalg.norm(np.array(fingertip) - np.array(box_center))
+            
+#             return float('inf')
+            
+#         except Exception as e:
+#             print(f"Error calculating distance: {e}")
+#             return float('inf')
+
+#     def get_performance_stats(self):
+#         """Get current performance statistics."""
+#         return {
+#             'fps': self.fps,
+#             'device': self.device,
+#             'frame_count': self.frame_count
+#         }
+
+#     def cleanup(self):
+#         """Clean up resources."""
+#         try:
+#             if hasattr(self, 'model'):
+#                 del self.model
+#             if hasattr(self, 'hand_tracker'):
+#                 del self.hand_tracker
+#             print("Resources cleaned up successfully")
+#         except Exception as e:
+#             print(f"Error during cleanup: {e}")
