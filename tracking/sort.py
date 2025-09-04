@@ -89,9 +89,11 @@
 #         return o
 
 
-from .kalman_filter import KalmanBoxTracker
 import numpy as np
 from scipy.optimize import linear_sum_assignment  # Hungarian algorithm
+
+from .kalman_filter import KalmanBoxTracker
+
 
 class Sort:
     def __init__(self, max_age=30, min_hits=2, iou_threshold=0.5):
@@ -178,9 +180,10 @@ class Sort:
         yy1 = np.maximum(bb_test[1], bb_gt[1])
         xx2 = np.minimum(bb_test[2], bb_gt[2])
         yy2 = np.minimum(bb_test[3], bb_gt[3])
-        w = np.maximum(0., xx2 - xx1)
-        h = np.maximum(0., yy2 - yy1)
+        w = np.maximum(0.0, xx2 - xx1)
+        h = np.maximum(0.0, yy2 - yy1)
         wh = w * h
-        o = wh / ((bb_test[2] - bb_test[0]) * (bb_test[3] - bb_test[1])
-                  + (bb_gt[2] - bb_gt[0]) * (bb_gt[3] - bb_gt[1]) - wh)
+        o = wh / (
+            (bb_test[2] - bb_test[0]) * (bb_test[3] - bb_test[1]) + (bb_gt[2] - bb_gt[0]) * (bb_gt[3] - bb_gt[1]) - wh
+        )
         return o
