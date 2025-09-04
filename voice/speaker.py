@@ -1,9 +1,12 @@
-import pyttsx3
 import queue
 import threading
 
+import pyttsx3
+
+
 class VoiceSpeaker:
     """A thread-safe text-to-speech class that speaks from a queue."""
+
     def __init__(self):
         """Initializes the TTS engine and the speaking thread."""
         self._engine = pyttsx3.init()
