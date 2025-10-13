@@ -1,11 +1,13 @@
 # learning/learner.py
 import os
-import cv2
 import uuid
+
+import cv2
 import speech_recognition as sr
 
+
 class ObjectLearner:
-    def __init__(self, save_dir='data/unknown_objects'):
+    def __init__(self, save_dir="data/unknown_objects"):
         self.save_dir = save_dir
         os.makedirs(self.save_dir, exist_ok=True)
         self.recognizer = sr.Recognizer()

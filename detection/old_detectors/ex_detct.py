@@ -115,13 +115,12 @@
 #         return resized_frame, detected_labels
 
 
-
 # import torch
 # import cv2
 # import numpy as np
 # from config.settings import CONFIDENCE, SCALE_PERCENT
 # from tracking.tracker import ObjectTracker
-# from voice.speaker import VoiceSpeaker  
+# from voice.speaker import VoiceSpeaker
 # from voice.translations import LABEL_TRANSLATIONS
 
 # class Detector:
