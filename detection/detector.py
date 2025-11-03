@@ -171,7 +171,7 @@
 #         """Update FPS"""
 #         if not self.config["performance_monitoring"]:
 #             return
-        
+
 #         elapsed = time.time() - self.start_time
 #         if elapsed > 1:
 #             self.fps = self.frame_count / elapsed
@@ -274,22 +274,26 @@
 #         except Exception as e:
 #             print(f"Error during cleanup: {e}")
 
-import cv2
-import numpy as np
 import time
+
+import cv2
 import torch
 from ultralytics import YOLO
+
 
 # Placeholder classes if needed
 class VoiceSpeaker:
     def speak(self, text):
         print(f"[SPEAKING]: {text}")
 
+
 class ObjectLearner:
     pass
 
+
 CONFIDENCE = 0.6
 SCALE_PERCENT = 50
+
 
 class Detector:
     def __init__(self, config=None):
@@ -299,7 +303,7 @@ class Detector:
             "speech_cooldown": 5,
             "known_objects": ["person", "car", "dog", "chair", "bicycle", "bottle", "cup"],
             "performance_monitoring": True,
-            "frame_skip": 2  # Process every 2nd frame
+            "frame_skip": 2,  # Process every 2nd frame
         }
         if config:
             self.config.update(config)
@@ -342,13 +346,9 @@ class Detector:
             if confidence is not None:
                 label_text += f" ({confidence:.2f})"
 
-            (text_width, text_height), baseline = cv2.getTextSize(
-                label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
-            )
-            cv2.rectangle(img, (x1, y1 - text_height - 10),
-                          (x1 + text_width, y1), color, -1)
-            cv2.putText(img, label_text, (x1, y1 - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            (text_width, text_height), baseline = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.rectangle(img, (x1, y1 - text_height - 10), (x1 + text_width, y1), color, -1)
+            cv2.putText(img, label_text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         except Exception as e:
             print(f"Error drawing box: {e}")
 
@@ -394,17 +394,16 @@ class Detector:
 
     def _draw_ui_elements(self, frame):
         if self.config["performance_monitoring"]:
-            cv2.putText(frame, f"FPS: {self.fps:.1f}", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, f"FPS: {self.fps:.1f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
     def detect_and_draw(self, frame):
         try:
             self.frame_count += 1
-            do_process = (self.frame_count % self.config.get("frame_skip", 1) == 0)
+            do_process = self.frame_count % self.config.get("frame_skip", 1) == 0
 
             if do_process:
-                width = int(frame.shape[1] * self.config['scale_percent'] / 100)
-                height = int(frame.shape[0] * self.config['scale_percent'] / 100)
+                width = int(frame.shape[1] * self.config["scale_percent"] / 100)
+                height = int(frame.shape[0] * self.config["scale_percent"] / 100)
                 resized = cv2.resize(frame, (width, height))
                 img_rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
 
