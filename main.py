@@ -1,4 +1,3 @@
-
 # # main.py
 # from detection.detector import Detector
 # from voice.speaker import VoiceSpeaker
@@ -302,7 +301,6 @@
 # listener.listening = False
 
 
-
 # import cv2
 # import numpy as np
 # import sys
@@ -336,7 +334,7 @@
 #     class VoiceSpeaker:
 #         def speak(self, text): print(f"[SPEAKING]: {text}")
 #         def stop(self): pass
-        
+
 # try:
 #     from voice.listener import VoiceListener
 # except ImportError:
@@ -351,9 +349,9 @@
 # # This now stores a dictionary: {label: [box]}
 # current_detected_objects = {}
 # # This stores the frame size for the listener: (width, height)
-# current_frame_size = (0, 0) 
+# current_frame_size = (0, 0)
 # labels_lock = Lock()
-# SPEAK_TIMEOUT = 10 
+# SPEAK_TIMEOUT = 10
 
 # # ---- Thread-safe Functions for Listener ----
 # def get_current_objects():
@@ -417,7 +415,7 @@
 
 #         # 1) Run object detection. Expects a dictionary of {label: [box]}.
 #         processed_frame, detected_objects = detector.detect_and_draw(frame)
-        
+
 #         # 2) Update shared state for the listener thread (thread-safe)
 #         with labels_lock:
 #             current_detected_objects = detected_objects
@@ -428,7 +426,7 @@
 #         corners = harris_corner_mask(frame)
 #         combined_mask = cv2.bitwise_or(edges, corners)
 #         resized_mask = cv2.resize(combined_mask, (processed_frame.shape[1], processed_frame.shape[0]))
-        
+
 #         overlay = processed_frame.copy()
 #         overlay[resized_mask > 0] = [0, 0, 255] # BGR for red
 #         final_frame = cv2.addWeighted(processed_frame, 0.7, overlay, 0.3, 0)
@@ -462,11 +460,12 @@
 #     print("✅ System shut down gracefully.")
 
 
-import cv2
-import numpy as np
 import sys
 import time
 from threading import Lock
+
+import cv2
+import numpy as np
 
 # --- Project Structure Assumption ---
 # your_project/
@@ -483,48 +482,68 @@ try:
     from detection.detector import Detector
 except ImportError:
     print("Warning: Detector not found. Using mock.")
+
     class Detector:
-        def detect_and_draw(self, frame): return frame, {'mock_object': [10, 10, 50, 50]}
-        def cleanup(self): pass
+        def detect_and_draw(self, frame):
+            return frame, {"mock_object": [10, 10, 50, 50]}
+
+        def cleanup(self):
+            pass
+
 
 try:
     from voice.speaker import VoiceSpeaker
 except ImportError:
     print("Warning: VoiceSpeaker not found. Using mock.")
+
     class VoiceSpeaker:
-        def speak(self, text): print(f"[SPEAKING]: {text}")
-        def stop(self): pass
+        def speak(self, text):
+            print(f"[SPEAKING]: {text}")
+
+        def stop(self):
+            pass
+
 
 try:
     from voice.listener import VoiceListener
 except ImportError:
     print("Warning: VoiceListener not found. Using mock.")
+
     class VoiceListener:
-        def __init__(self, speaker, get_detected_labels_func, hotwords=None, frame_size_func=None): pass
-        def start(self): pass
-        def stop(self): pass
+        def __init__(self, speaker, get_detected_labels_func, hotwords=None, frame_size_func=None):
+            pass
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
 # --- End mocks ---
 
 # ---- Global State & Configuration ----
 current_detected_objects = {}  # {label: [box]}
-current_frame_size = (0, 0)    # (width, height)
+current_frame_size = (0, 0)  # (width, height)
 labels_lock = Lock()
 SPEAK_TIMEOUT = 10  # seconds before repeating auto-speak
+
 
 # ---- Thread-safe getters for listener ----
 def get_current_objects():
     with labels_lock:
         return current_detected_objects.copy()
 
+
 def get_frame_size():
     with labels_lock:
         return current_frame_size
+
 
 # ---- Preprocessing functions ----
 def canny_edge_detection(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     return cv2.Canny(blurred, 100, 200)
+
 
 def harris_corner_mask(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -533,6 +552,7 @@ def harris_corner_mask(frame):
     dst = cv2.dilate(dst, None)
     mask = (dst > 0.01 * dst.max()).astype(np.uint8) * 255
     return mask
+
 
 # ---- Initialization ----
 print("🚀 Initializing system components...")
@@ -543,7 +563,7 @@ listener = VoiceListener(
     speaker=speaker,
     get_detected_labels_func=get_current_objects,
     hotwords=["what", "where"],
-    frame_size_func=get_frame_size
+    frame_size_func=get_frame_size,
 )
 listener.start()
 

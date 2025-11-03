@@ -74,20 +74,21 @@
 # cv2.destroyAllWindows()
 
 
-import cv2
-import torch
-import pyttsx3
-import numpy as np
-import threading
 import queue
+import threading
+
+import cv2
+import pyttsx3
+import torch
 
 # Initialize TTS engine
 engine = pyttsx3.init()
-engine.setProperty('rate', 150)
-engine.setProperty('volume', 1)
+engine.setProperty("rate", 150)
+engine.setProperty("volume", 1)
 
 # Voice queue and thread
 voice_queue = queue.Queue()
+
 
 def voice_worker():
     while True:
@@ -96,11 +97,12 @@ def voice_worker():
             engine.say(text)
             engine.runAndWait()
 
+
 threading.Thread(target=voice_worker, daemon=True).start()
 
 # Load YOLOv5
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True)
+device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device).eval()
 
 # Open webcam
@@ -138,22 +140,21 @@ while True:
 
         x1, y1, x2, y2 = map(int, box)
         cv2.rectangle(frame_out, (x1, y1), (x2, y2), (0, 255, 255), 2)
-        cv2.putText(frame_out, f'{label} {conf:.2f}', (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        cv2.putText(frame_out, f"{label} {conf:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
     # Voice output for new detections
     unique_objs = set(detected_now)
     new_objects = unique_objs - spoken_objects
     if new_objects:
-        text = ', '.join(new_objects)
+        text = ", ".join(new_objects)
         if voice_queue.empty():
             voice_queue.put(text)
         spoken_objects.update(new_objects)
 
     # Display
-    cv2.imshow('Accurate YOLOv5 Detection', frame_out)
+    cv2.imshow("Accurate YOLOv5 Detection", frame_out)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
 cap.release()
